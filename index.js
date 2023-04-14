@@ -14,6 +14,7 @@ async function createReporters(options, deps) {
     consoleReporter.setOptions({
       color: options.color,
       alwaysListPendingSpecs: options.alwaysListPendingSpecs,
+      identifier: options.identifier,
     });
     result.push(consoleReporter);
   }
