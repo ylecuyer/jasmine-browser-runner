@@ -10,7 +10,7 @@ orbs:
 executors:
   node18:
     docker:
-      - image: cimg/node:16.3.0-browsers
+      - image: cimg/node:18.0.0-browsers
     working_directory: ~/workspace
   node16:
     docker:
@@ -102,16 +102,15 @@ jobs:
         name: Install Sauce Connect
         command: |
           cd /tmp
-          curl https://saucelabs.com/downloads/sc-4.7.1-linux.tar.gz | tar zxf -
-          chmod +x sc-4.7.1-linux/bin/sc
+          curl https://saucelabs.com/downloads/sc-4.8.2-linux.tar.gz | tar zxf -
+          chmod +x sc-4.8.2-linux/bin/sc
           mkdir ~/bin
-          cp sc-4.7.1-linux/bin/sc ~/bin
+          cp sc-4.8.2-linux/bin/sc ~/bin
           ~/bin/sc --version
     - run:
         name: Run tests
         command: |
           export PATH=$PATH:$HOME/workspace/bin
-          export SAUCE_TUNNEL_IDENTIFIER=$CIRCLE_BUILD_NUM
           export USE_SAUCE=true
           scripts/start-sauce-connect sauce-pidfile
           set +o errexit
