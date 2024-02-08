@@ -4,7 +4,7 @@ const { runJasmine, expectSuccess } = require('./integrationSupport');
 
 const timeoutMs = 240 * 1000;
 
-describe('Sauce parameter handling', function() {
+describe('remote grid parameter handling', function() {
   // To reduce the amount of output that devs have to scroll past, pend a single
   // spec and don't create the rest if Sauce isn't available.
   if (
@@ -16,7 +16,7 @@ describe('Sauce parameter handling', function() {
   ) {
     it('passes params to Saucelabs correctly', function() {
       pending(
-        "Can't run Sauce integration tests unless USE_SAUCE, SAUCE_USERNAME, and SAUCE_ACCESS_KEY are set"
+        "Can't run remote grid integration tests unless USE_SAUCE, SAUCE_USERNAME, and SAUCE_ACCESS_KEY are set"
       );
     });
     return;
@@ -73,7 +73,7 @@ describe('Sauce parameter handling', function() {
       `passes browser ${browser}, ${displayVersion}, and ${displayOS} correctly`,
       async function() {
         const suiteDir = createSuite();
-        console.log('Sauce test may take a minute or two');
+        console.log('remote grid test may take a minute or two');
 
         const result = await runJasmine(suiteDir, {
           extraArgs: '--config=jasmine-browser.json',
@@ -86,9 +86,9 @@ describe('Sauce parameter handling', function() {
     );
 
     function createSuite() {
-      const dir = fs.mkdtempSync(`${os.tmpdir()}/jasmine-browser-sauce-`);
+      const dir = fs.mkdtempSync(`${os.tmpdir()}/jasmine-browser-remote-grid-`);
       processTemplate(
-        'spec/fixtures/sauceIntegration/jasmine-browser.json',
+        'spec/fixtures/remoteGridIntegration/jasmine-browser.json',
         `${dir}/jasmine-browser.json`,
         {
           JASMINE_BROWSER: browser,
@@ -100,8 +100,8 @@ describe('Sauce parameter handling', function() {
         }
       );
       processTemplate(
-        'spec/fixtures/sauceIntegration/sauceParamsSpec.js',
-        `${dir}/sauceParamsSpec.js`,
+        'spec/fixtures/remoteGridIntegration/remoteGridParamsSpec.js',
+        `${dir}/remoteGridParamsSpec.js`,
         { EXPECTED: expectedUserAgentRegex }
       );
       return dir;

@@ -1,6 +1,3 @@
-[![Build Status](https://circleci.com/gh/jasmine/jasmine-browser.svg?style=shield)](https://circleci.com/gh/jasmine/jasmine-browser)
-
-
 jasmine-browser-runner runs your Jasmine specs in a browser. It's suitable for
 interactive use with normal browsers as well as running specs in CI builds
 using either headless Chrome or Saucelabs.
@@ -9,44 +6,36 @@ using either headless Chrome or Saucelabs.
 
 ```bash
 npm install --save-dev jasmine-browser-runner jasmine-core
+npx jasmine-browser-runner init
 ```
 
 or
 
 ```bash
 yarn add -D jasmine-browser-runner jasmine-core
+npx jasmine-browser-runner init
 ```
 
-Add a `spec/support/jasmine-browser.json`. For example:
+If you intend to use ES modules, add `--esm` to the `jasmine-browser-runner init`
+command.
 
-```json
-{
-  "srcDir": "src",
-  "srcFiles": [
-    "**/*.?(m)js"
-  ],
-  "specDir": "spec",
-  "specFiles": [
-    "**/*[Ss]pec.?(m)js"
-  ],
-  "helpers": [
-    "helpers/asyncAwait.js"
-  ],
-  "env": {
-    "random": true
-  }
-}
-```
+Then, customize `spec/support/jasmine-browser.json` to suit your needs. You can
+change the spec files, helpers, and source files that are loaded, specify the
+[Jasmine env's configuration](https://jasmine.github.io/api/edge/Configuration.html),
+and more.
 
-You can also use the `--config` option to specify a different file. This file can be a JSON file or a javascript file that exports a object that looks like the JSON above.
+You can also use the `--config` option to specify a different file. 
+This file can be a JSON file or a javascript file that exports a object that looks like the JSON above. 
+More information about the configuration can be found at the runner [documentation website](https://jasmine.github.io/api/browser-runner/edge/Configuration.html).
 
-Start the server:
+To start the server so that you can run the specs interactively (particularly
+useful for debugging):
 
 ```
 npx jasmine-browser-runner serve
 ```
 
-Run the tests in a browser (defaults to Firefox)
+To run the specs in a browser (defaults to Firefox):
 
 ```
 npx jasmine-browser-runner runSpecs
@@ -68,12 +57,19 @@ Its value can be `"firefox"`, `"headlessFirefox"`, `"safari"`,
 ## ES module support
 
 If a source, spec, or helper file's name ends in `.mjs`, it will be loaded as
-an ES module rather than a regular script.
+an ES module rather than a regular script. Note that ES modules can only be
+loaded from other ES modules. So if your source files are ES modules, your
+spec files need to be ES modules too. Want to use a different extension than
+`.esm`? Just set the `esmFilenameExtension` config property, e.g.
+`"esmFilenameExtension": ".js"`.
 
 To allow spec files to import source files via relative paths, set the `specDir`
 config field to something that's high enough up to include both spec and source
 files, and set `srcFiles` to `[]`. You can autogenerate such a configuration by
 running `npx jasmine-browser-runner init --esm`.
+
+If you have specs or helper files that use top-level await, set the
+`enableTopLevelAwait` config property is set to `true`.
 
 [Import maps](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/script/type/importmap)
 are also supported:
@@ -169,7 +165,71 @@ To run the specs:
 2. Run `npx jasmine-browser-runner`.
 3. Visit <http://localhost:8888>.
 
-## Saucelabs support
+## Remote Grid support (Saucelabs, BrowserStack, etc.)
+
+jasmine-browser-runner can run your Jasmine specs on a remote grid
+provider like [Saucelabs](https://saucelabs.com/), 
+[BrowserStack](https://browserstack.com) or your own Selenium Grid.
+To use a remote grid hub, set the `browser` object
+in your config file as follows:
+
+```json
+// jasmine-browser.json
+{
+  // ...
+  // BrowserStack
+  "browser": {
+    "name": "safari",
+    "useRemoteSeleniumGrid": true,
+    "remoteSeleniumGrid": {
+      "url": "https://hub-cloud.browserstack.com/wd/hub",
+      "bstack:options": {
+        "browserVersion": "16",
+        "os": "OS X",
+        "osVersion": "Monterey",
+        "local": "true",
+        "localIdentifier": "tunnel ID",
+        "debug": "true",
+        "userName": "your BrowserStack username",
+        "accessKey": "your BrowserStack access key"
+      }
+    }
+  }
+}
+```
+```json
+// jasmine-browser.json
+{
+  // ...
+  // Saucelabs
+  "browser": {
+    "name": "safari",
+    "useRemoteSeleniumGrid": true,
+    "remoteSeleniumGrid": {
+      "url": "https://ondemand.saucelabs.com/wd/hub",
+      "platformName": "macOS 12",
+      "sauce:options": {
+        "tunnel-identifier": "tunnel ID",
+        "userName": "your Saucelabs username",
+        "accessKey": "your Saucelabs access key"
+      }
+    }
+  }
+}
+```
+
+When using a remote grid provider, all properties of the `browser` object are
+optional except for `name` which will be passed as the `browserName` capability,
+and `useRemoteSeleniumGrid` which must be set to a value of `true`. if a
+`remoteSeleniumGrid` object is included, any values it contains, with the
+exception of the `url` will be used as `capabilties` sent to the grid hub url.
+if no value is specified for the `url` then a default of
+`http://localhost:4445/wd/hub` is used. 
+
+## Saucelabs support (legacy)
+> NOTE: the below configuration format only supports using Saucelabs in the US. if connecting from the EU, please use the above specifying a `url` value specific to your region (e.g. `https://ondemand.eu-central-1.saucelabs.com:443/wd/hub`) to avoid a connection error of `WebDriverError: This user is unauthorized to the region. Please try another region, or contact customer support.`
+
+> WARNING: the below configuration format may be removed in favour of using the above in the future so it is advised that you migrate to the above
 
 jasmine-browser-runner can run your Jasmine specs on [Saucelabs](https://saucelabs.com/).
 To use Saucelabs, set `browser.name`, `browser.useSauce`, and `browser.sauce`
@@ -218,10 +278,10 @@ Firefox, and Microsoft Edge) as well as Node.
 
 | Environment       | Supported versions     |
 |-------------------|------------------------|
-| Node              | 12.17+, 14, 16, 18, 20 |
-| Safari            | 14-16                  |
+| Node              | 18, 20                 |
+| Safari            | 15-16                  |
 | Chrome            | Evergreen              |
-| Firefox           | Evergreen, 91, 102     |
+| Firefox           | Evergreen, 102         |
 | Edge              | Evergreen              |
 
 For evergreen browsers, each version of jasmine-browser-runner is tested against
@@ -232,3 +292,6 @@ they aren't actively supported.
 
 To find out what environments work with a particular Jasmine release, see the [release notes](https://github.com/jasmine/jasmine/tree/main/release_notes).
 
+Copyright (c) 2019 Pivotal Labs
+Copyright (c) 2020-2023 The Jasmine developers
+This software is licensed under the MIT License.

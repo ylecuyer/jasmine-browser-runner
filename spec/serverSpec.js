@@ -124,7 +124,7 @@ describe('server', function() {
         '/__boot__/bootboot.js',
         '/__config__/config.js',
         '/__boot__/boot2.js',
-        '/__support__/loadEsModule.js',
+        '/__support__/loaders.js',
         '/__support__/batchReporter.js',
       ]);
     });
@@ -350,38 +350,131 @@ describe('server', function() {
       const baseUrl = `http://localhost:${this.server.port()}`;
 
       const html = await getFile(baseUrl);
-      expect(html).toContain('/__support__/loadEsModule.js');
+      expect(html).toContain('/__support__/loaders.js');
     });
 
     describe('loading specs and helpers', function() {
-      it('loads .js files as regular scripts', async function() {
-        await this.startServer();
-        const baseUrl = `http://localhost:${this.server.port()}`;
+      function behavesLikeTopLevelAwaitDisabled() {
+        it('loads .js files as regular scripts', async function() {
+          await this.startServer(this.extraOptions);
+          const baseUrl = `http://localhost:${this.server.port()}`;
 
-        const html = await getFile(baseUrl);
-        expect(html).toContain(
-          '<script src="/__spec__/helpers/halp.js" type="text/javascript">'
-        );
-        expect(html).toContain(
-          '<script src="/__spec__/imAspec.js" type="text/javascript">'
-        );
+          const html = await getFile(baseUrl);
+          expect(html).toContain(
+            '<script src="/__spec__/helpers/halp.js" type="text/javascript">'
+          );
+          expect(html).toContain(
+            '<script src="/__spec__/imAspec.js" type="text/javascript">'
+          );
+        });
+
+        it('loads .mjs spec and helper files as ES modules', async function() {
+          await this.startServer({
+            ...this.extraOptions,
+            srcFiles: ['**/*.mjs'],
+            helpers: ['helpers/**/*.mjs'],
+            specFiles: ['**/*[sS]pec.mjs'],
+          });
+          const baseUrl = `http://localhost:${this.server.port()}`;
+
+          const html = await getFile(baseUrl);
+          expect(html).toContain(
+            '<script type="module">_jasmine_loadEsModule(\'/__spec__/helpers/esm.mjs\')</script>'
+          );
+          expect(html).toContain(
+            '<script type="module">_jasmine_loadEsModule(\'/__spec__/esmSpec.mjs\')</script>'
+          );
+        });
+
+        describe('And a nonstandard ES module estension is specified', function() {
+          beforeEach(function() {
+            this.extraOptions.esmFilenameExtension = '.mod';
+          });
+
+          behavesLikeTopLevelAwaitDisabledWithNonstandardEsmExtension();
+        });
+      }
+
+      function behavesLikeTopLevelAwaitDisabledWithNonstandardEsmExtension() {
+        it('loads .js files as regular scripts', async function() {
+          await this.startServer(this.extraOptions);
+          const baseUrl = `http://localhost:${this.server.port()}`;
+
+          const html = await getFile(baseUrl);
+          expect(html).toContain(
+            '<script src="/__spec__/helpers/halp.js" type="text/javascript">'
+          );
+          expect(html).toContain(
+            '<script src="/__spec__/imAspec.js" type="text/javascript">'
+          );
+        });
+
+        it('loads spec and helper files with the ESM estension as ES modules', async function() {
+          await this.startServer({
+            ...this.extraOptions,
+            srcFiles: ['**/*.mod'],
+            helpers: ['helpers/**/*.mod'],
+            specFiles: ['**/*[sS]pec.mod'],
+          });
+          const baseUrl = `http://localhost:${this.server.port()}`;
+
+          const html = await getFile(baseUrl);
+          expect(html).toContain(
+            '<script type="module">_jasmine_loadEsModule(\'/__spec__/helpers/esm.mod\')</script>'
+          );
+          expect(html).toContain(
+            '<script type="module">_jasmine_loadEsModule(\'/__spec__/esmSpec.mod\')</script>'
+          );
+        });
+      }
+
+      describe('When enableTopLevelAwait is undefined', function() {
+        beforeEach(function() {
+          this.extraOptions = {};
+        });
+
+        behavesLikeTopLevelAwaitDisabled();
       });
 
-      it('loads .mjs files as ES modules', async function() {
-        await this.startServer({
-          srcFiles: ['**/*.mjs'],
-          helpers: ['helpers/**/*.mjs'],
-          specFiles: ['**/*[sS]pec.mjs'],
+      describe('When enableTopLevelAwait is false', function() {
+        beforeEach(function() {
+          this.extraOptions = { enableTopLevelAwait: false };
         });
-        const baseUrl = `http://localhost:${this.server.port()}`;
 
-        const html = await getFile(baseUrl);
-        expect(html).toContain(
-          '<script type="module">_jasmine_loadEsModule(\'/__spec__/helpers/esm.mjs\')</script>'
-        );
-        expect(html).toContain(
-          '<script type="module">_jasmine_loadEsModule(\'/__spec__/esmSpec.mjs\')</script>'
-        );
+        behavesLikeTopLevelAwaitDisabled();
+      });
+
+      describe('When enableTopLevelAwait is true', function() {
+        it('uses _jasmine_loadWithTopLevelAwaitSupport', async function() {
+          await this.startServer({
+            enableTopLevelAwait: true,
+            srcFiles: ['**/*.mjs'],
+            helpers: ['helpers/**/*.?(m)js'],
+            specFiles: ['**/*[sS]pec.?(m)js'],
+          });
+          const baseUrl = `http://localhost:${this.server.port()}`;
+
+          const html = await getFile(baseUrl);
+
+          expect(html).toContain('_jasmine_loadWithTopLevelAwaitSupport');
+
+          expect(html).toContain('/__spec__/helpers/esm.mjs');
+          expect(html).not.toContain(
+            '<script src="/__spec__/helpers/halp.js" type="text/javascript">'
+          );
+          expect(html).toContain('/__spec__/imAspec.js');
+          expect(html).not.toContain(
+            '<script src="/__spec__/imAspec.js" type="text/javascript">'
+          );
+          expect(html).toContain('/__spec__/helpers/esm.mjs');
+          expect(html).not.toContain(
+            '<script type="module">_jasmine_loadEsModule(\'/__spec__/helpers/esm.mjs\')</script>'
+          );
+          expect(html).toContain('/__spec__/esmSpec.mjs');
+          expect(html).not.toContain(
+            '<script type="module">_jasmine_loadEsModule(\'/__spec__/esmSpec.mjs\')</script>'
+          );
+        });
       });
     });
 
@@ -450,75 +543,41 @@ describe('server', function() {
     });
   });
 
-  describe('Backslash handling', function() {
-    describe('When running on Windows', function() {
-      beforeEach(function() {
-        spyOn(console, 'warn');
-      });
+  it('uses specified Express middleware', async function() {
+    spyOn(console, 'log');
 
-      function windows() {
-        return 'win32';
-      }
+    const app = jasmine.createSpyObj('app', ['use', 'get', 'listen']);
+    app.listen.and.callFake(function(port, cb) {
+      setImmediate(cb);
+      return {
+        address() {
+          return {};
+        },
+      };
+    });
+    const fakeExpress = function() {
+      return app;
+    };
+    fakeExpress.static = function() {};
+    function middleware1() {}
+    function middleware2() {}
 
-      function testGlobWarning(fieldName) {
-        const options = { platform: windows };
-        options[fieldName] = ['foo\\*.js', 'foo\\bar\\exact.js'];
-        new Server(options);
-        expect(console.warn).toHaveBeenCalledWith(
-          'Backslashes in ' +
-            'file paths behave inconsistently between platforms and might not be ' +
-            'treated as directory separators in a future version. Consider ' +
-            'changing foo\\*.js to foo/*.js.'
-        );
-        expect(console.warn).toHaveBeenCalledWith(
-          'Backslashes in ' +
-            'file paths behave inconsistently between platforms and might not be ' +
-            'treated as directory separators in a future version. Consider ' +
-            'changing foo\\bar\\exact.js to foo/bar/exact.js.'
-        );
-      }
-
-      it('warns about backslashes in srcFiles', function() {
-        testGlobWarning('srcFiles');
-      });
-
-      it('warns about backslashes in specFiles', function() {
-        testGlobWarning('specFiles');
-      });
-
-      it('warns about backslashes in helpers', function() {
-        testGlobWarning('helpers');
-      });
+    const server = new Server({
+      projectBaseDir: path.resolve(__dirname, 'fixtures/importMap'),
+      jasmineCore: this.fakeJasmine,
+      express: fakeExpress,
+      srcDir: 'src',
+      specDir: 'spec',
+      middleware: {
+        '/foo': middleware1,
+        '/bar': middleware2,
+      },
     });
 
-    describe('When not running on Windows', function() {
-      beforeEach(function() {
-        spyOn(console, 'warn');
-      });
+    await server.start();
 
-      function notWindows() {
-        return 'Ultrix 4.5';
-      }
-
-      function testGlobWarning(fieldName) {
-        const options = { platform: notWindows };
-        options[fieldName] = ['foo\\*.js', 'foo\\bar\\exact.js'];
-        new Server(options);
-        expect(console.warn).not.toHaveBeenCalled();
-      }
-
-      it('warns about backslashes in srcFiles', function() {
-        testGlobWarning('srcFiles');
-      });
-
-      it('warns about backslashes in specFiles', function() {
-        testGlobWarning('specFiles');
-      });
-
-      it('warns about backslashes in helpers', function() {
-        testGlobWarning('helpers');
-      });
-    });
+    expect(app.use).toHaveBeenCalledWith('/foo', middleware1);
+    expect(app.use).toHaveBeenCalledWith('/bar', middleware2);
   });
 
   describe('When an importMap is provided', function() {

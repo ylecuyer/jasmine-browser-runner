@@ -1,58 +1,42 @@
-const { exec } = require('child_process');
+const {
+  runJasmine,
+  expectSuccess,
+  timeoutMs,
+} = require('./integrationSupport');
 
 describe('ESM integration', function() {
-  beforeEach(function() {
-    if (process.env.JASMINE_NO_BROWSER_TESTS) {
-      pending('skipping because the JASMINE_NO_BROWSER_TESTS env var is set');
-    }
-  });
-
   it(
     'supports ES modules as specs, helpers, and sources',
-    function(done) {
-      let timedOut = false;
-      let timerId;
-      const jasmineBrowserProcess = exec(
-        'node ../../../bin/jasmine-browser-runner runSpecs',
-        { cwd: 'spec/fixtures/esmIntegration' },
-        function(err, stdout, stderr) {
-          try {
-            if (timedOut) {
-              return;
-            }
-
-            clearTimeout(timerId);
-
-            if (!err) {
-              expect(stdout).toContain('3 specs, 0 failures');
-              done();
-            } else {
-              if (err.code !== 1 || stdout === '' || stderr !== '') {
-                // Some kind of unexpected failure happened. Include all the info
-                // that we have.
-                done.fail(
-                  `Child suite failed with error:\n${err}\n\n` +
-                    `stdout:\n${stdout}\n\n` +
-                    `stderr:\n${stderr}`
-                );
-              } else {
-                // A normal suite failure. Just include the output.
-                done.fail(`Child suite failed with output:\n${stdout}`);
-              }
-            }
-          } catch (e) {
-            done.fail(e);
-          }
-        }
-      );
-
-      timerId = setTimeout(function() {
-        // Kill the child processs if we're about to time out, to free up
-        // the port.
-        timedOut = true;
-        jasmineBrowserProcess.kill();
-      }, 29 * 1000);
+    async function() {
+      const result = await runJasmine('spec/fixtures/esmIntegration');
+      expectSuccess(result, '3 specs, 0 failures');
     },
-    30 * 1000
+    timeoutMs
+  );
+
+  it(
+    'optionally loads .js files as ES modules',
+    async function() {
+      const result = await runJasmine(
+        'spec/fixtures/esmIntegrationJsExtension'
+      );
+      expectSuccess(result, '3 specs, 0 failures');
+    },
+    timeoutMs
+  );
+
+  it(
+    'optionally supports top-level await',
+    async function() {
+      const result = await runJasmine('spec/fixtures/topLevelAwait');
+      expectSuccess(result, '3 specs, 0 failures');
+      // Verify that specs ran in the expected order
+      expect(result.stdout).toContain(
+        'Spec started: is a spec in aSpec.mjs\n' +
+          '.Spec started: verifies that ES modules in helpers were awaited\n' +
+          '.Spec started: is a spec in bSpec.js\n'
+      );
+    },
+    timeoutMs
   );
 });
