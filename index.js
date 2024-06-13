@@ -14,6 +14,8 @@ async function createReporters(options, deps) {
     consoleReporter.setOptions({
       color: options.color,
       alwaysListPendingSpecs: options.alwaysListPendingSpecs,
+      nycPath: options.nycPath,
+      nycIdentifier: options.nycIdentifier,
     });
     result.push(consoleReporter);
   }
